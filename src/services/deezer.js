@@ -3,6 +3,22 @@ import { UpstreamError } from '../errors.js';
 
 const DEEZER_BASE_URL = 'https://api.deezer.com';
 
+async function deezerGet(path, context, params = {}) {
+  try {
+    const response = await axios.get(`${DEEZER_BASE_URL}${path}`, {
+      params,
+      timeout: 8000,
+      validateStatus: (status) => status < 500,
+    });
+    if (response.status === 404) return null;
+    if (!response.data || response.data.error) return null;
+    return response.data;
+  } catch (error) {
+    if (error.response?.status === 404) return null;
+    throwDeezerError(error, context);
+  }
+}
+
 function throwDeezerError(error, context) {
   const status = error.response?.status;
   const message =
@@ -197,4 +213,69 @@ export async function searchArtists(query) {
     console.error(`[Deezer] Artist search error for query "${query}":`, error.message);
     throwDeezerError(error, 'Artist search failed');
   }
+}
+
+export async function getChartAlbums() {
+  const data = await deezerGet('/chart/0/albums', 'Chart albums');
+  return data?.data || data?.albums?.data || [];
+}
+
+export async function getChartTracks() {
+  const data = await deezerGet('/chart/0/tracks', 'Chart tracks');
+  return data?.data || data?.tracks?.data || [];
+}
+
+export async function getGenres() {
+  const data = await deezerGet('/genre', 'Genres');
+  return data?.data || [];
+}
+
+export async function getGenreAlbums(genreId, index = 0, limit = 25) {
+  const data = await deezerGet(`/genre/${genreId}/albums`, 'Genre albums', {
+    index,
+    limit,
+  });
+  return data?.data || [];
+}
+
+export async function getEditorialReleases(editorialId = 0) {
+  const data = await deezerGet(`/editorial/${editorialId}/releases`, 'Editorial releases');
+  return data?.data || data?.albums?.data || [];
+}
+
+export async function getEditorial(editorialId) {
+  return deezerGet(`/editorial/${editorialId}`, 'Editorial');
+}
+
+export async function getAlbum(albumId) {
+  return deezerGet(`/album/${albumId}`, 'Album');
+}
+
+export async function getAlbumTracks(albumId) {
+  const data = await deezerGet(`/album/${albumId}/tracks`, 'Album tracks');
+  return data?.data || [];
+}
+
+export async function getArtist(artistId) {
+  return deezerGet(`/artist/${artistId}`, 'Artist');
+}
+
+export async function getArtistAlbums(artistId) {
+  const data = await deezerGet(`/artist/${artistId}/albums`, 'Artist albums');
+  return data?.data || [];
+}
+
+export async function getArtistTopTracks(artistId) {
+  const data = await deezerGet(`/artist/${artistId}/top`, 'Artist top tracks');
+  return data?.data || [];
+}
+
+export async function getArtistRelated(artistId) {
+  const data = await deezerGet(`/artist/${artistId}/related`, 'Artist related');
+  return data?.data || [];
+}
+
+export async function searchSuggest(query, limit = 5) {
+  const data = await deezerGet('/search', 'Search suggest', { q: query, limit });
+  return data?.data || [];
 }

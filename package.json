@@ -10,7 +10,9 @@
     "test:integration": "node test-aggregator.js",
     "render:install": "powershell -ExecutionPolicy Bypass -File scripts/render-install.ps1",
     "render:setup": "powershell -ExecutionPolicy Bypass -File scripts/render-setup.ps1",
-    "render:validate": "powershell -ExecutionPolicy Bypass -Command \"& .tools/render/render.exe blueprints validate ./render.yaml -o json --confirm\""
+    "render:validate": "powershell -ExecutionPolicy Bypass -Command \"& .tools/render/render.exe blueprints validate ./render.yaml -o json --confirm\"",
+    "supabase:setup": "powershell -ExecutionPolicy Bypass -File scripts/supabase-setup.ps1",
+    "supabase:render-env": "powershell -ExecutionPolicy Bypass -File scripts/render-supabase-env.ps1"
   },
   "keywords": [],
   "author": "",
@@ -20,12 +22,12 @@
   },
   "type": "module",
   "dependencies": {
+    "@supabase/supabase-js": "^2.106.1",
     "axios": "^1.16.1",
     "cheerio": "^1.2.0",
     "cors": "^2.8.6",
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
-    "express-rate-limit": "^8.2.1",
     "express-rate-limit": "^8.5.2",
     "lru-cache": "^11.5.0",
     "sqlite3": "^6.0.1",

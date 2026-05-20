@@ -6,6 +6,9 @@ node_modules/
 .env.*
 !.env.example
 !.env.render.example
+!.env.supabase.example
+.supabase-state.json
+supabase/.temp/
 cache.db
 cache.db-*
 *.log

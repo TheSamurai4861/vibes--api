@@ -1,6 +1,11 @@
-# Music API
+# Music API + Vibes
 
-API Node.js (Express) qui agrège Deezer, MusicBrainz, Wikipédia et des paroles. Interface web incluse dans `public/`.
+Monolithe Express en deux couches :
+
+- **`/api/*`** — proxy musique Deezer (découverte, charts, genres, fiches) + agrégation MusicBrainz / Wikipédia / paroles
+- **Racine** — API sociale Vibes (auth, profils, ratings, reviews, feed, listes) via **Supabase**
+
+Interface web de démo dans `public/`.
 
 ## Lancer en local
 
@@ -32,6 +37,38 @@ Voir [.env.example](.env.example).
 | `CACHE_DB_PATH` | Chemin SQLite (`/tmp/cache.db` sur Render) |
 | `RATE_LIMIT_MAX` | Limite requêtes/min sur search & details (défaut `60`) |
 | `RATE_LIMIT_GLOBAL_MAX` | Limite globale `/api/*` (défaut `120`) |
+| `DEEZER_COUNTRY` | Pays charts / discover (défaut `FR`) |
+| `SUPABASE_URL` | URL projet Supabase (API Vibes) |
+| `SUPABASE_ANON_KEY` | Clé anon (login côté serveur) |
+| `SUPABASE_SERVICE_ROLE_KEY` | Clé service role (serveur uniquement) |
+
+Sans Supabase configuré, les routes Vibes répondent `503` avec `code: SUPABASE_NOT_CONFIGURED`.
+
+### Connexion Supabase (automatisée)
+
+1. Créez un **Personal Access Token** : [supabase.com/dashboard/account/tokens](https://supabase.com/dashboard/account/tokens)
+2. Copiez [`.env.supabase.example`](.env.supabase.example) → `.env.supabase.local` et collez le token, **ou** :
+
+```powershell
+$env:SUPABASE_ACCESS_TOKEN = "sbp_..."
+npm run supabase:setup
+```
+
+Le script `scripts/supabase-setup.ps1` :
+
+- se connecte à votre compte Supabase ;
+- crée le projet **`vibes-music-api`** (région `eu-west-1`) s’il n’existe pas ;
+- applique `supabase/migrations/001_initial.sql` (`supabase db push`) ;
+- écrit `SUPABASE_*` dans `.env` ;
+- pousse les variables sur **Render** si `RENDER_API_KEY` est défini.
+
+Projet existant : `npm run supabase:setup -- -UseExistingProject -ProjectRef votre-ref`
+
+Schéma manuel : SQL Editor → contenu de `supabase/migrations/001_initial.sql`.
+
+### Convention `musicItemId`
+
+Identifiant musique pour ratings / reviews : `track:123` ou `album:456` (ID Deezer).
 
 ## Mettre en ligne sur Render
 
@@ -95,12 +132,49 @@ Depuis l'interface : **Cache Manager** → saisir le token admin (stocké en ses
 
 ## Endpoints
 
+### Musique (`/api`)
+
+Listes paginées : `{ items, total, nextOffset, meta }` — query `limit` (max 50), `offset`, `country` (défaut `FR`).
+
 | Méthode | Route | Description |
 |---------|-------|-------------|
-| GET | `/api/health` | Santé du service (probe Render) |
-| GET | `/api/search?q=...&type=track\|album\|artist` | Recherche Deezer |
-| GET | `/api/details?trackId=...` | Détails agrégés |
+| GET | `/api/health` | Santé (probe Render) |
+| GET | `/api/search` | Recherche Deezer (`q`, `type`) |
+| GET | `/api/search/suggest` | Suggestions rapides |
+| GET | `/api/discover/new-releases` | Nouvelles sorties |
+| GET | `/api/discover/upcoming` | À venir (fallback JSON FR) |
+| GET | `/api/charts/albums` | Top albums |
+| GET | `/api/charts/tracks` | Top titres |
+| GET | `/api/genres` | Genres |
+| GET | `/api/genres/:id/albums` | Albums par genre |
+| GET | `/api/track/:id` | Fiche titre agrégée |
+| GET | `/api/details?trackId=` | Alias legacy → track |
+| GET | `/api/album/:id` | Fiche album + pistes |
+| GET | `/api/artist/:id` | Fiche artiste |
+| GET | `/api/artists/:id/top-tracks` | Top titres artiste |
+| GET | `/api/artists/:id/related` | Artistes similaires |
+| GET | `/api/music/:id/external-links` | Liens externes (ISRC/MBID si dispo) |
 | POST | `/api/cache/clear` | Vider le cache (Bearer `ADMIN_TOKEN`) |
+
+OpenAPI minimal (discover) : [openapi.yaml](openapi.yaml).
+
+### Vibes (racine, JWT Supabase)
+
+Header : `Authorization: Bearer <access_token>` pour les routes protégées.
+
+| Domaine | Routes principales |
+|---------|-------------------|
+| Auth | `POST /auth/register`, `/auth/login`, `/auth/logout` |
+| Profils | `GET/PATCH /users/me`, `GET /users/:username`, `GET /users/search` |
+| Ratings | `POST/PATCH/DELETE /ratings`, `GET /users/:id/ratings` |
+| Reviews | `POST/PATCH/DELETE /reviews`, likes & comments, `GET /reviews/search` |
+| Fiches | `GET /music/:musicItemId/reviews`, `.../ratings/summary` |
+| Feed | `GET /feed/friends`, `/feed/home`, `/feed/trending/reviews`, `/feed/trending/lists` |
+| Social | `POST/DELETE /users/:id/follow`, followers/following, compatibility |
+| Listes | CRUD `/lists`, items, `GET /lists/search`, `/me/listen-later` |
+| Onboarding | `PATCH /users/me/taste`, `GET /onboarding/suggested-artists` |
+| Reco | `GET /recommendations/me`, similar, `POST /recommendations/send` |
+| Chat | `GET /conversations`, `GET/POST /conversations/:id/messages` |
 
 ### Réponses enrichies (`meta`)
 

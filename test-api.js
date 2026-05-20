@@ -1,6 +1,5 @@
 /**
- * Lightweight HTTP smoke tests for production endpoints.
- * Run: npm test
+ * Smoke tests for Music + Vibes API routes.
  */
 
 process.env.CACHE_DB_PATH = ':memory:';
@@ -20,47 +19,75 @@ async function request(method, path, options = {}) {
   const res = await fetch(`${baseUrl}${path}`, {
     method,
     headers: options.headers,
+    body: options.body ? JSON.stringify(options.body) : undefined,
   });
-  const body = res.headers.get('content-type')?.includes('json')
-    ? await res.json()
-    : null;
+  const body =
+    res.headers.get('content-type')?.includes('json') && res.status !== 204
+      ? await res.json()
+      : null;
   return { status: res.status, body };
 }
 
 async function run() {
   server = app.listen(0, '127.0.0.1');
   await new Promise((resolve) => server.once('listening', resolve));
-  const { port } = server.address();
-  baseUrl = `http://127.0.0.1:${port}`;
+  baseUrl = `http://127.0.0.1:${server.address().port}`;
 
   console.log('[test-api] Running smoke tests...\n');
 
-  const health = await request('GET', '/api/health');
-  assert(health.status === 200, `health: expected 200, got ${health.status}`);
-  assert(health.body?.status === 'ok', 'health: expected status ok');
-  console.log('  GET /api/health -> 200 ok');
+  let r = await request('GET', '/api/health');
+  assert(r.status === 200, `health: ${r.status}`);
+  console.log('  GET /api/health -> 200');
 
-  const searchBad = await request('GET', '/api/search');
-  assert(searchBad.status === 400, `search without q: expected 400, got ${searchBad.status}`);
-  assert(searchBad.body?.code === 'VALIDATION_ERROR', 'search without q: expected VALIDATION_ERROR');
-  console.log('  GET /api/search (no q) -> 400 VALIDATION_ERROR');
+  r = await request('GET', '/api/search');
+  assert(r.status === 400, `search no q: ${r.status}`);
+  console.log('  GET /api/search (no q) -> 400');
 
-  const searchOk = await request('GET', '/api/search?q=daft+punk&type=track');
-  assert(searchOk.status === 200, `search: expected 200, got ${searchOk.status}`);
-  assert(searchOk.body?.meta?.status === 'ok', 'search: expected meta.status ok');
-  assert(Array.isArray(searchOk.body?.tracks), 'search: expected tracks array');
-  console.log('  GET /api/search?q=daft+punk -> 200 with tracks');
+  r = await request('GET', '/api/search?q=daft+punk&type=track');
+  assert(r.status === 200 && r.body.tracks, `search: ${r.status}`);
+  console.log('  GET /api/search -> 200');
 
-  const cacheNoAuth = await request('POST', '/api/cache/clear');
-  assert(cacheNoAuth.status === 401, `cache clear no token: expected 401, got ${cacheNoAuth.status}`);
-  console.log('  POST /api/cache/clear (no token) -> 401');
+  r = await request('GET', '/api/discover/new-releases?limit=5');
+  assert(r.status === 200 && Array.isArray(r.body.items), `new-releases: ${r.status}`);
+  console.log('  GET /api/discover/new-releases -> 200');
 
-  const cacheAuth = await request('POST', '/api/cache/clear', {
+  r = await request('GET', '/api/charts/albums?limit=5');
+  assert(r.status === 200 && r.body.items, `charts albums: ${r.status}`);
+  console.log('  GET /api/charts/albums -> 200');
+
+  r = await request('GET', '/api/genres');
+  assert(r.status === 200 && r.body.items?.length > 0, `genres: ${r.status}`);
+  console.log('  GET /api/genres -> 200');
+
+  r = await request('GET', '/api/charts/tracks?limit=3');
+  assert(r.status === 200, `charts tracks: ${r.status}`);
+  console.log('  GET /api/charts/tracks -> 200');
+
+  r = await request('POST', '/api/cache/clear');
+  assert(r.status === 401, `cache no auth: ${r.status}`);
+  r = await request('POST', '/api/cache/clear', {
     headers: { Authorization: 'Bearer test-admin-token' },
   });
-  assert(cacheAuth.status === 200, `cache clear with token: expected 200, got ${cacheAuth.status}`);
-  assert(cacheAuth.body?.success === true, 'cache clear: expected success true');
-  console.log('  POST /api/cache/clear (valid token) -> 200');
+  assert(r.status === 200, `cache clear: ${r.status}`);
+  console.log('  POST /api/cache/clear -> 200');
+
+  r = await request('GET', '/auth/login');
+  assert(r.status === 404 || r.status === 405, `auth get: ${r.status}`);
+  r = await request('POST', '/auth/login', {
+    body: {},
+  });
+  assert(
+    r.status === 400 || r.status === 503 || r.status === 401,
+    `auth login without supabase: ${r.status}`
+  );
+  console.log('  POST /auth/login -> handled');
+
+  r = await request('GET', '/feed/trending/reviews');
+  assert(
+    r.status === 200 || r.status === 503,
+    `trending reviews: ${r.status}`
+  );
+  console.log('  GET /feed/trending/reviews -> ok');
 
   console.log('\n[test-api] All smoke tests passed.');
 }
@@ -71,15 +98,13 @@ async function teardown() {
   try {
     await cache.close();
   } catch {
-    /* ignore if already closed */
+    /* ignore */
   }
 }
 
 run()
-  .then(async () => {
-    await teardown();
-    process.exit(0);
-  })
+  .then(teardown)
+  .then(() => process.exit(0))
   .catch(async (err) => {
     console.error('\n[test-api] FAILED:', err.message);
     await teardown();

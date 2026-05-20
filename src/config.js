@@ -43,5 +43,14 @@ export const config = {
   cacheDbPath,
   cacheMemoryOnly:
     parseBoolEnv('CACHE_MEMORY_ONLY') || process.env.RENDER === 'true',
+  deezerCountry: process.env.DEEZER_COUNTRY || 'FR',
+  supabaseUrl: process.env.SUPABASE_URL || '',
+  supabaseAnonKey: process.env.SUPABASE_ANON_KEY || '',
+  supabaseServiceRoleKey: process.env.SUPABASE_SERVICE_ROLE_KEY || '',
+  supabaseConfigured: Boolean(
+    process.env.SUPABASE_URL &&
+      process.env.SUPABASE_ANON_KEY &&
+      process.env.SUPABASE_SERVICE_ROLE_KEY
+  ),
   projectRoot,
 };

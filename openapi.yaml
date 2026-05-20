@@ -1,0 +1,71 @@
+openapi: 3.0.3
+info:
+  title: Music API — Discover
+  version: 1.0.0
+  description: Proxy Deezer (découverte & charts). Voir README pour l’API Vibes sociale.
+servers:
+  - url: http://localhost:3000
+paths:
+  /api/discover/new-releases:
+    get:
+      summary: Nouvelles sorties (éditorial Deezer)
+      parameters:
+        - $ref: '#/components/parameters/limit'
+        - $ref: '#/components/parameters/offset'
+        - $ref: '#/components/parameters/country'
+      responses:
+        '200':
+          description: Liste paginée d’albums Vibes
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedAlbums'
+  /api/discover/upcoming:
+    get:
+      summary: Sorties à venir (fallback éditorial FR)
+      parameters:
+        - $ref: '#/components/parameters/limit'
+        - $ref: '#/components/parameters/offset'
+      responses:
+        '200':
+          description: Liste paginée
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedAlbums'
+components:
+  parameters:
+    limit:
+      name: limit
+      in: query
+      schema:
+        type: integer
+        default: 25
+        maximum: 50
+    offset:
+      name: offset
+      in: query
+      schema:
+        type: integer
+        default: 0
+    country:
+      name: country
+      in: query
+      schema:
+        type: string
+        default: FR
+  schemas:
+    PaginatedAlbums:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            type: object
+        total:
+          type: integer
+        nextOffset:
+          type: integer
+          nullable: true
+        meta:
+          type: object

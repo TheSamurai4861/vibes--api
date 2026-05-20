@@ -14,6 +14,17 @@ export const apiGlobalLimiter = rateLimit({
   },
 });
 
+export const vibesWriteLimiter = rateLimit({
+  windowMs,
+  max: Math.min(config.rateLimitMax, 30),
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    error: 'Too many write requests. Please slow down.',
+    code: 'RATE_LIMIT_EXCEEDED',
+  },
+});
+
 export const searchDetailsLimiter = rateLimit({
   windowMs,
   max: config.rateLimitMax,
