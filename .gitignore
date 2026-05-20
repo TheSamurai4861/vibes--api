@@ -1,7 +1,11 @@
 node_modules/
+.tools/
+.render-state.json
+.env.render.local
 .env
 .env.*
 !.env.example
+!.env.render.example
 cache.db
 cache.db-*
 *.log

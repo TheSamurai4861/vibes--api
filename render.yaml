@@ -9,8 +9,8 @@ services:
     envVars:
       - key: NODE_VERSION
         value: "20"
-      - key: CACHE_DB_PATH
-        value: /tmp/cache.db
+      - key: CACHE_MEMORY_ONLY
+        value: "1"
       - key: CORS_ORIGIN
         sync: false
       - key: ADMIN_TOKEN

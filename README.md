@@ -37,18 +37,52 @@ Voir [.env.example](.env.example).
 
 Dépôt : https://github.com/TheSamurai4861/vibes--api.git
 
-1. Render → **New** → **Blueprint** ou **Web Service** → connecter le dépôt.
+### Option A — Render CLI (recommandé, Windows)
+
+Prérequis : compte Render actif (facturation non suspendue).
+
+```powershell
+npm run render:install
+.\.tools\render\render.exe login
+.\.tools\render\render.exe workspace set
+npm run render:setup
+```
+
+Le script `render-setup.ps1` enchaîne : validation `render.yaml` → création du service → deploy → health check → test cache admin. Le token admin est généré dans `.env.render.local` (gitignored).
+
+Après le premier deploy, pour ajuster CORS avec l’URL finale :
+
+```powershell
+$env:RENDER_API_KEY = "rnd_..."   # Dashboard → Account Settings → API Keys
+.\scripts\render-env.ps1 -ServiceId srv-XXXX -ServiceUrl https://music-api-xxxx.onrender.com
+```
+
+Commandes utiles :
+
+| Commande | Action |
+|----------|--------|
+| `npm run render:validate` | Valider `render.yaml` |
+| `npm run render:setup` | Déploiement complet |
+| `.\.tools\render\render.exe services -o json --confirm` | Lister les services |
+| `.\.tools\render\render.exe deploys create srv-XXX --wait --confirm` | Redéployer |
+
+CI optionnel : secrets GitHub `RENDER_API_KEY` + `RENDER_SERVICE_ID` → workflow [`.github/workflows/render-deploy.yml`](.github/workflows/render-deploy.yml).
+
+### Option B — Dashboard manuel
+
+1. Render → **New** → **Blueprint** → repo `vibes--api`.
 2. **Build** : `npm install` — **Start** : `npm start` — **Plan** : Free.
-3. Variables à définir dans le dashboard :
-   - `ADMIN_TOKEN` : chaîne aléatoire longue
-   - `CORS_ORIGIN` : `https://votre-app.onrender.com` (et `http://localhost:3000` si besoin)
+3. Variables :
+   - `ADMIN_TOKEN` : secret long
+   - `CORS_ORIGIN` : `https://votre-app.onrender.com`
    - `CACHE_DB_PATH` : `/tmp/cache.db` (déjà dans `render.yaml`)
-4. Health check : `/api/health` (configuré dans `render.yaml`).
+4. Health check : `/api/health`.
 
 ### Limites du plan gratuit Render
 
 - Mise en veille après ~15 min sans trafic ; premier appel lent (30–60 s).
 - Disque éphémère : le cache SQLite est recréé à chaque déploiement.
+- Si `render blueprints validate` renvoie `billing_suspended`, réglez la facturation sur [dashboard.render.com/billing](https://dashboard.render.com/billing) avant de créer un service.
 
 ### Vider le cache en production
 

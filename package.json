@@ -7,7 +7,10 @@
     "start": "node server.js",
     "dev": "node server.js",
     "test": "node test-api.js",
-    "test:integration": "node test-aggregator.js"
+    "test:integration": "node test-aggregator.js",
+    "render:install": "powershell -ExecutionPolicy Bypass -File scripts/render-install.ps1",
+    "render:setup": "powershell -ExecutionPolicy Bypass -File scripts/render-setup.ps1",
+    "render:validate": "powershell -ExecutionPolicy Bypass -Command \"& .tools/render/render.exe blueprints validate ./render.yaml -o json --confirm\""
   },
   "keywords": [],
   "author": "",

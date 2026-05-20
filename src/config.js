@@ -28,6 +28,11 @@ const cacheDbPath =
     ? cacheDbRaw
     : path.resolve(projectRoot, cacheDbRaw);
 
+function parseBoolEnv(name) {
+  const raw = (process.env[name] || '').toLowerCase();
+  return raw === '1' || raw === 'true' || raw === 'yes';
+}
+
 export const config = {
   port: parseIntEnv('PORT', 3000),
   adminToken: process.env.ADMIN_TOKEN || '',
@@ -36,5 +41,6 @@ export const config = {
   rateLimitMax: parseIntEnv('RATE_LIMIT_MAX', 60),
   rateLimitGlobalMax: parseIntEnv('RATE_LIMIT_GLOBAL_MAX', 120),
   cacheDbPath,
+  cacheMemoryOnly: parseBoolEnv('CACHE_MEMORY_ONLY'),
   projectRoot,
 };
