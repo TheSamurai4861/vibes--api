@@ -669,6 +669,53 @@ body {
   margin-bottom: 2rem;
 }
 
+.cache-admin-field {
+  margin-bottom: 1.5rem;
+}
+
+.cache-admin-field label {
+  display: block;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin-bottom: 0.5rem;
+}
+
+.cache-admin-field input {
+  width: 100%;
+  max-width: 420px;
+  padding: 0.75rem 1rem;
+  border-radius: 10px;
+  border: 1px solid var(--border-glass);
+  background: rgba(0, 0, 0, 0.25);
+  color: var(--text-primary);
+  font-family: inherit;
+}
+
+.cache-admin-hint {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  margin-top: 0.5rem;
+}
+
+.cache-admin-hint code {
+  font-size: 0.75rem;
+  opacity: 0.9;
+}
+
+.degraded-banner {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.85rem 1rem;
+  margin-bottom: 1.25rem;
+  border-radius: 10px;
+  background: rgba(255, 193, 7, 0.12);
+  border: 1px solid rgba(255, 193, 7, 0.35);
+  color: #f0d78c;
+  font-size: 0.9rem;
+}
+
 .cache-actions {
   margin-bottom: 2.5rem;
 }

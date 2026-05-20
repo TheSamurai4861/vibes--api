@@ -37,6 +37,27 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Cache elements
   const clearCacheBtn = document.getElementById('clear-cache-btn');
+  const adminTokenInput = document.getElementById('admin-token-input');
+
+  const ADMIN_TOKEN_KEY = 'music-api-admin-token';
+  if (adminTokenInput) {
+    const savedToken = sessionStorage.getItem(ADMIN_TOKEN_KEY);
+    if (savedToken) adminTokenInput.value = savedToken;
+    adminTokenInput.addEventListener('change', () => {
+      const value = adminTokenInput.value.trim();
+      if (value) {
+        sessionStorage.setItem(ADMIN_TOKEN_KEY, value);
+      } else {
+        sessionStorage.removeItem(ADMIN_TOKEN_KEY);
+      }
+    });
+  }
+
+  function getAdminAuthHeaders() {
+    const token = adminTokenInput?.value.trim() || sessionStorage.getItem(ADMIN_TOKEN_KEY);
+    if (!token) return {};
+    return { Authorization: `Bearer ${token}` };
+  }
 
   // Audio state
   let currentAudio = null;
@@ -203,13 +224,20 @@ document.addEventListener('DOMContentLoaded', () => {
         clearCacheBtn.disabled = true;
         clearCacheBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Clearing...';
         
-        const response = await fetch('/api/cache/clear', { method: 'POST' });
+        const response = await fetch('/api/cache/clear', {
+          method: 'POST',
+          headers: getAdminAuthHeaders(),
+        });
         const data = await response.json();
-        
-        if (data.success) {
+
+        if (response.status === 401) {
+          alert('Invalid admin token. Check ADMIN_TOKEN on the server and try again.');
+        } else if (response.status === 503) {
+          alert('Cache admin is not configured on this server.');
+        } else if (data.success) {
           alert('Hybrid cache cleared successfully!');
         } else {
-          alert('Failed to clear cache: ' + data.error);
+          alert('Failed to clear cache: ' + (data.error || response.statusText));
         }
       } catch (err) {
         console.error(err);
@@ -239,10 +267,11 @@ document.addEventListener('DOMContentLoaded', () => {
       const data = await response.json();
       
       const searchLatency = Date.now() - startSearch;
-      latencyBadge.innerHTML = `<i class="fa-solid fa-gauge-high"></i> Latency: ${searchLatency} ms (${data.responseTimeMs} ms API)`;
+      latencyBadge.innerHTML = `<i class="fa-solid fa-gauge-high"></i> Latency: ${searchLatency} ms (${data.responseTimeMs ?? '--'} ms API)`;
 
-      if (data.error) {
-        resultsGrid.innerHTML = `<div class="welcome-card" style="grid-column: 1/-1;"><h2>Search Error</h2><p>${data.error}</p></div>`;
+      if (!response.ok || data.meta?.status === 'error' || data.error) {
+        const msg = data.error || 'Search service is temporarily unavailable. Please try again.';
+        resultsGrid.innerHTML = `<div class="welcome-card" style="grid-column: 1/-1;"><h2>Search unavailable</h2><p>${msg}</p></div>`;
         resultsGrid.classList.remove('hidden');
         return;
       }
@@ -431,17 +460,17 @@ document.addEventListener('DOMContentLoaded', () => {
       const aggLatency = Date.now() - startAgg;
       detailLatencyBadge.innerHTML = `<i class="fa-solid fa-bolt"></i> Latency: ${aggLatency} ms (${data.responseTimeMs} ms API)`;
 
-      if (data.error) {
+      if (!response.ok || data.meta?.status === 'error' || data.error) {
         panelScrollContent.innerHTML = `
           <div class="welcome-card" style="max-width: 100%;">
             <h2>Failed to load details</h2>
-            <p>${data.error}</p>
+            <p>${data.error || 'Details service is temporarily unavailable.'}</p>
           </div>
         `;
         return;
       }
 
-      renderDetailedContent(data.details);
+      renderDetailedContent(data.details, data.meta);
     } catch (err) {
       console.error(err);
       panelScrollContent.innerHTML = `
@@ -454,7 +483,14 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // --- RENDER DYNAMIC DETAIL PANEL ---
-  function renderDetailedContent(details) {
+  function renderDetailedContent(details, meta) {
+    const degradedBanner =
+      meta?.status === 'degraded'
+        ? `<div class="degraded-banner" role="status">
+            <i class="fa-solid fa-triangle-exclamation"></i>
+            Some sources are temporarily unavailable. Showing partial results.
+          </div>`
+        : '';
     const mbBlock = details.musicbrainz;
     const wikiBlock = details.wikipedia;
     
@@ -466,6 +502,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     panelScrollContent.innerHTML = `
+      ${degradedBanner}
       <!-- Hero / Top Section -->
       <div class="hero-block">
         <img class="details-art" src="${details.album.cover || 'https://via.placeholder.com/180'}" alt="${details.album.title}">

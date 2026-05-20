@@ -1,60 +1,90 @@
 import express from 'express';
 import cors from 'cors';
-import dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { searchAggregated, searchTracksAggregated, getTrackDetailsAggregated } from './src/aggregator.js';
+import { config } from './src/config.js';
+import { UpstreamError, ValidationError } from './src/errors.js';
+import { requireAdminToken } from './src/middleware/auth.js';
+import { apiGlobalLimiter, searchDetailsLimiter } from './src/middleware/rateLimit.js';
+import {
+  validateSearchQuery,
+  validateSearchType,
+  validateTrackId,
+} from './src/validation.js';
+import {
+  searchAggregated,
+  getTrackDetailsAggregated,
+} from './src/aggregator.js';
 import * as cache from './src/services/cache.js';
-
-dotenv.config();
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const app = express();
-const PORT = process.env.PORT || 3000;
+export const app = express();
 
-// Enable CORS and JSON parsing
-app.use(cors());
+app.use(
+  cors({
+    origin(origin, callback) {
+      if (!origin || config.corsOrigins.includes('*')) {
+        return callback(null, true);
+      }
+      if (config.corsOrigins.includes(origin)) {
+        return callback(null, true);
+      }
+      return callback(new Error('Not allowed by CORS'));
+    },
+  })
+);
 app.use(express.json());
-
-// Serve static files from public directory
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Request logging middleware
 app.use((req, res, next) => {
   const startTime = Date.now();
   res.on('finish', () => {
     const duration = Date.now() - startTime;
-    console.log(`[HTTP] ${req.method} ${req.originalUrl} - Status: ${res.statusCode} (${duration}ms)`);
+    console.log(
+      `[HTTP] ${req.method} ${req.originalUrl} - Status: ${res.statusCode} (${duration}ms)`
+    );
   });
   next();
 });
 
+app.use('/api', apiGlobalLimiter);
+
+/**
+ * GET /api/health
+ */
+app.get('/api/health', async (req, res) => {
+  const cacheOk = await cache.ping();
+  const status = cacheOk ? 'ok' : 'degraded';
+  res.status(cacheOk ? 200 : 503).json({
+    status,
+    uptime: process.uptime(),
+    timestamp: new Date().toISOString(),
+    cache: cacheOk ? 'connected' : 'unavailable',
+  });
+});
+
 /**
  * GET /api/search?q={query}&type={track|album|artist}
- * Queries Deezer and returns results rapidly.
  */
-app.get('/api/search', async (req, res) => {
+app.get('/api/search', searchDetailsLimiter, async (req, res) => {
   try {
-    const { q, type = 'track' } = req.query;
-    if (!q || !q.trim()) {
-      return res.status(400).json({ error: 'Search query parameter "q" is required.' });
-    }
+    const q = validateSearchQuery(req.query.q);
+    const type = validateSearchType(req.query.type);
 
     const startTime = Date.now();
     const results = await searchAggregated(q, type);
     const duration = Date.now() - startTime;
 
-    // Optional header to show search speed in response
     res.setHeader('X-Response-Time-Ms', duration.toString());
-    
-    // Build backward compatible response keys
+
     const responsePayload = {
       query: q,
       type,
       resultsCount: results.length,
-      responseTimeMs: duration
+      responseTimeMs: duration,
+      meta: { status: 'ok' },
     };
 
     if (type === 'track') {
@@ -67,78 +97,130 @@ app.get('/api/search', async (req, res) => {
 
     return res.json(responsePayload);
   } catch (error) {
+    if (error instanceof ValidationError) {
+      return res.status(400).json({
+        error: error.message,
+        code: 'VALIDATION_ERROR',
+        field: error.field,
+      });
+    }
+    if (error instanceof UpstreamError) {
+      console.error('[HTTP] Upstream error on /api/search:', error.message);
+      return res.status(503).json({
+        error: 'Music search service is temporarily unavailable.',
+        code: 'UPSTREAM_UNAVAILABLE',
+        meta: { status: 'error', sources: [error.source] },
+      });
+    }
     console.error('[HTTP] Error handling /api/search:', error);
-    return res.status(500).json({ error: 'Internal server error while searching.' });
+    return res.status(500).json({
+      error: 'Internal server error while searching.',
+      code: 'INTERNAL_ERROR',
+    });
   }
 });
 
 /**
  * GET /api/details?trackId={trackId}
- * Aggregates information from multiple sources.
  */
-app.get('/api/details', async (req, res) => {
+app.get('/api/details', searchDetailsLimiter, async (req, res) => {
   try {
-    const { trackId } = req.query;
-    if (!trackId) {
-      return res.status(400).json({ error: 'Query parameter "trackId" is required.' });
-    }
-
-    const trackIdNum = parseInt(trackId, 10);
-    if (isNaN(trackIdNum)) {
-      return res.status(400).json({ error: 'Query parameter "trackId" must be a valid number.' });
-    }
+    const trackIdNum = validateTrackId(req.query.trackId);
 
     const startTime = Date.now();
-    const details = await getTrackDetailsAggregated(trackIdNum);
+    const result = await getTrackDetailsAggregated(trackIdNum);
     const duration = Date.now() - startTime;
 
-    if (!details) {
-      return res.status(404).json({ error: `Track details not found for ID: ${trackId}` });
+    if (!result) {
+      return res.status(404).json({
+        error: `Track details not found for ID: ${req.query.trackId}`,
+        code: 'NOT_FOUND',
+      });
     }
+
+    const { details, warnings } = result;
+    const meta = {
+      status: warnings.length > 0 ? 'degraded' : 'ok',
+      ...(warnings.length > 0 && { warnings }),
+    };
 
     res.setHeader('X-Response-Time-Ms', duration.toString());
     return res.json({
       responseTimeMs: duration,
-      details
+      details,
+      meta,
     });
   } catch (error) {
+    if (error instanceof ValidationError) {
+      return res.status(400).json({
+        error: error.message,
+        code: 'VALIDATION_ERROR',
+        field: error.field,
+      });
+    }
+    if (error instanceof UpstreamError) {
+      console.error('[HTTP] Upstream error on /api/details:', error.message);
+      return res.status(503).json({
+        error: 'Track details service is temporarily unavailable.',
+        code: 'UPSTREAM_UNAVAILABLE',
+        meta: { status: 'error', sources: [error.source] },
+      });
+    }
     console.error('[HTTP] Error handling /api/details:', error);
-    return res.status(500).json({ error: 'Internal server error while retrieving details.' });
+    return res.status(500).json({
+      error: 'Internal server error while retrieving details.',
+      code: 'INTERNAL_ERROR',
+    });
   }
 });
 
 /**
  * POST /api/cache/clear
- * Admin endpoint to clear cache.
  */
-app.post('/api/cache/clear', async (req, res) => {
+app.post('/api/cache/clear', requireAdminToken, async (req, res) => {
   try {
     await cache.clear();
     return res.json({ success: true, message: 'Cache cleared successfully.' });
   } catch (error) {
     console.error('[HTTP] Error clearing cache:', error);
-    return res.status(500).json({ error: 'Failed to clear cache.' });
+    return res.status(500).json({
+      error: 'Failed to clear cache.',
+      code: 'INTERNAL_ERROR',
+    });
   }
 });
 
-// 404 handler for API routes
 app.use('/api', (req, res) => {
-  res.status(404).json({ error: 'API route not found.' });
+  res.status(404).json({ error: 'API route not found.', code: 'NOT_FOUND' });
 });
 
-// Start Express server
-const server = app.listen(PORT, '0.0.0.0', () => {
-  console.log(`\n======================================================`);
-  console.log(`🎵 Music API Server running at http://localhost:${PORT}`);
-  console.log(`🚀 WAL-enabled Cache and API integrations ready!`);
-  console.log(`======================================================\n`);
-});
-
-// Handle graceful shutdown
-process.on('SIGINT', () => {
-  console.log('[Server] Shutting down gracefully...');
-  server.close(() => {
+function shutdown(signal, server) {
+  console.log(`[Server] Received ${signal}, shutting down gracefully...`);
+  server.close(async () => {
     console.log('[Server] HTTP server closed.');
+    try {
+      await cache.close();
+    } catch (err) {
+      console.error('[Server] Error closing cache:', err);
+    }
     process.exit(0);
   });
-});
+}
+
+const isMain =
+  process.argv[1] &&
+  path.resolve(process.argv[1]) === path.resolve(fileURLToPath(import.meta.url));
+
+if (isMain) {
+  const server = app.listen(config.port, '0.0.0.0', () => {
+    console.log(`\n======================================================`);
+    console.log(`Music API Server running at http://localhost:${config.port}`);
+    console.log(`Health: http://localhost:${config.port}/api/health`);
+    console.log(`Cache DB: ${config.cacheDbPath}`);
+    console.log(`Admin cache clear: ${config.adminToken ? 'enabled' : 'disabled'}`);
+    console.log(`======================================================\n`);
+  });
+
+  process.on('SIGINT', () => shutdown('SIGINT', server));
+  process.on('SIGTERM', () => shutdown('SIGTERM', server));
+}

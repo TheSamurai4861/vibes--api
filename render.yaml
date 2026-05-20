@@ -5,7 +5,13 @@ services:
     plan: free
     buildCommand: npm install
     startCommand: npm start
-    healthCheckPath: /
+    healthCheckPath: /api/health
     envVars:
       - key: NODE_VERSION
         value: "20"
+      - key: CACHE_DB_PATH
+        value: /tmp/cache.db
+      - key: CORS_ORIGIN
+        sync: false
+      - key: ADMIN_TOKEN
+        sync: false

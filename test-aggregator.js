@@ -51,11 +51,16 @@ async function runTests() {
     console.log('[Test 3] This will query MusicBrainz, Wikipedia, and scrape Lyrics in parallel...');
     
     const startDetails1 = Date.now();
-    const details1 = await getTrackDetailsAggregated(trackId);
+    const result1 = await getTrackDetailsAggregated(trackId);
     const durationDetails1 = Date.now() - startDetails1;
 
-    if (!details1) {
+    if (!result1) {
       throw new Error(`Test failed: Could not fetch details for track ID ${trackId}`);
+    }
+
+    const details1 = result1.details;
+    if (result1.warnings.length > 0) {
+      console.log(`[Result] Pipeline warnings:`, result1.warnings);
     }
 
     console.log(`\n======================================================`);

@@ -5,7 +5,9 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "dev": "node server.js"
+    "dev": "node server.js",
+    "test": "node test-api.js",
+    "test:integration": "node test-aggregator.js"
   },
   "keywords": [],
   "author": "",
@@ -20,6 +22,8 @@
     "cors": "^2.8.6",
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
+    "express-rate-limit": "^8.2.1",
+    "express-rate-limit": "^8.5.2",
     "lru-cache": "^11.5.0",
     "sqlite3": "^6.0.1",
     "string-similarity": "^4.0.4"

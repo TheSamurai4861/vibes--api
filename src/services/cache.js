@@ -1,11 +1,8 @@
 import { LRUCache } from 'lru-cache';
 import sqlite3 from 'sqlite3';
-import path from 'path';
-import { fileURLToPath } from 'url';
+import { config } from '../config.js';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-const dbPath = path.resolve(__dirname, '../../cache.db');
+const dbPath = config.cacheDbPath;
 
 console.log(`[Cache] Initializing SQLite database at: ${dbPath}`);
 
@@ -170,6 +167,35 @@ export function clear() {
       }
       console.log('[Cache] Cache cleared completely.');
       resolve(true);
+    });
+  });
+}
+
+/**
+ * Health check: verifies SQLite responds.
+ * @returns {Promise<boolean>}
+ */
+export function ping() {
+  return new Promise((resolve) => {
+    db.get('SELECT 1 AS ok', [], (err) => {
+      resolve(!err);
+    });
+  });
+}
+
+/**
+ * Closes the SQLite connection gracefully.
+ * @returns {Promise<void>}
+ */
+export function close() {
+  return new Promise((resolve, reject) => {
+    db.close((err) => {
+      if (err) {
+        console.error('[Cache] Error closing database:', err);
+        return reject(err);
+      }
+      console.log('[Cache] Database connection closed.');
+      resolve();
     });
   });
 }

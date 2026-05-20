@@ -6,69 +6,73 @@ API Node.js (Express) qui agrège Deezer, MusicBrainz, Wikipédia et des paroles
 
 ```bash
 npm install
+cp .env.example .env
+# Éditer .env (ADMIN_TOKEN recommandé pour vider le cache)
 npm start
 ```
 
 Ouvrir http://localhost:3000
 
-## Mettre en ligne gratuitement (Render)
+### Tests
 
-[Render](https://render.com) propose un hébergement web gratuit (le service s’endort après ~15 min sans trafic, puis se réveille au premier appel).
+```bash
+npm test              # smoke tests HTTP (rapide)
+npm run test:integration  # tests agrégateur + APIs externes (lent)
+```
 
-### Prérequis
+## Variables d'environnement
 
-- Un compte [GitHub](https://github.com)
-- Un compte [Render](https://render.com) (connexion via GitHub)
+Voir [.env.example](.env.example).
 
-### Étapes
+| Variable | Description |
+|----------|-------------|
+| `PORT` | Port du serveur (défaut `3000`) |
+| `ADMIN_TOKEN` | Token Bearer pour `POST /api/cache/clear` (obligatoire en prod) |
+| `CORS_ORIGIN` | Origines autorisées, séparées par des virgules (`*` en dev) |
+| `CACHE_DB_PATH` | Chemin SQLite (`/tmp/cache.db` sur Render) |
+| `RATE_LIMIT_MAX` | Limite requêtes/min sur search & details (défaut `60`) |
+| `RATE_LIMIT_GLOBAL_MAX` | Limite globale `/api/*` (défaut `120`) |
 
-1. **Initialiser Git et pousser sur GitHub** (depuis le dossier du projet) :
+## Mettre en ligne sur Render
 
-   ```bash
-   git init
-   git add .
-   git commit -m "Initial commit"
-   git branch -M main
-   git remote add origin https://github.com/VOTRE_USER/music-api.git
-   git push -u origin main
-   ```
+Dépôt : https://github.com/TheSamurai4861/vibes--api.git
 
-   Créez d’abord un dépôt vide sur GitHub, puis remplacez `VOTRE_USER/music-api` par votre URL.
+1. Render → **New** → **Blueprint** ou **Web Service** → connecter le dépôt.
+2. **Build** : `npm install` — **Start** : `npm start` — **Plan** : Free.
+3. Variables à définir dans le dashboard :
+   - `ADMIN_TOKEN` : chaîne aléatoire longue
+   - `CORS_ORIGIN` : `https://votre-app.onrender.com` (et `http://localhost:3000` si besoin)
+   - `CACHE_DB_PATH` : `/tmp/cache.db` (déjà dans `render.yaml`)
+4. Health check : `/api/health` (configuré dans `render.yaml`).
 
-2. **Créer le service sur Render**
+### Limites du plan gratuit Render
 
-   - Dashboard → **New** → **Blueprint** (si le dépôt contient `render.yaml`)  
-     **ou** **New** → **Web Service** → connecter le dépôt GitHub.
-   - **Runtime** : Node
-   - **Build Command** : `npm install`
-   - **Start Command** : `npm start`
-   - **Plan** : Free
+- Mise en veille après ~15 min sans trafic ; premier appel lent (30–60 s).
+- Disque éphémère : le cache SQLite est recréé à chaque déploiement.
 
-3. **Variables d’environnement** : aucune obligatoire (`PORT` est fourni par Render).
+### Vider le cache en production
 
-4. Après le déploiement, l’URL ressemble à :  
-   `https://music-api-xxxx.onrender.com`
+```bash
+curl -X POST https://votre-app.onrender.com/api/cache/clear \
+  -H "Authorization: Bearer VOTRE_ADMIN_TOKEN"
+```
 
-### Notes importantes
-
-| Sujet | Détail |
-|--------|--------|
-| **Mise en veille** | Le plan gratuit met l’app en veille ; le premier appel après inactivité peut prendre 30–60 s. |
-| **Cache SQLite** | Le fichier `cache.db` est sur disque éphémère : il est recréé à chaque redéploiement (comportement normal). |
-| **Module natif** | `sqlite3` est compilé au build sur les serveurs Linux de Render. |
-
-## Autres hébergeurs gratuits (alternatives)
-
-- **[Fly.io](https://fly.io)** : quota gratuit, un peu plus technique (CLI + `fly.toml`).
-- **[Koyeb](https://www.koyeb.com)** : instance gratuite, déploiement depuis GitHub.
-- **[Oracle Cloud](https://www.oracle.com/cloud/free/)** : VM toujours gratuite (plus de configuration, mais pas de mise en veille).
-
-Pour un usage perso ou une démo, **Render + GitHub** est en général le plus simple.
+Depuis l'interface : **Cache Manager** → saisir le token admin (stocké en session navigateur uniquement).
 
 ## Endpoints
 
 | Méthode | Route | Description |
 |---------|-------|-------------|
-| GET | `/api/search?q=...&type=track\|album\|artist` | Recherche |
+| GET | `/api/health` | Santé du service (probe Render) |
+| GET | `/api/search?q=...&type=track\|album\|artist` | Recherche Deezer |
 | GET | `/api/details?trackId=...` | Détails agrégés |
-| POST | `/api/cache/clear` | Vider le cache |
+| POST | `/api/cache/clear` | Vider le cache (Bearer `ADMIN_TOKEN`) |
+
+### Réponses enrichies (`meta`)
+
+Les réponses incluent un bloc optionnel `meta` sans casser les champs existants :
+
+- Recherche OK : `meta.status: "ok"`
+- Service indisponible : HTTP `503`, `code: "UPSTREAM_UNAVAILABLE"`
+- Détails partiels : `meta.status: "degraded"`, `meta.warnings[]`
+- Validation : HTTP `400`, `code: "VALIDATION_ERROR"`

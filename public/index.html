@@ -121,6 +121,12 @@
             <h2><i class="fa-solid fa-server"></i> Hybrid Cache Console</h2>
             <p>SoundFlow uses an ultra-fast in-memory LRU cache coupled with a persistent SQLite3 database running in Write-Ahead Logging (WAL) mode to guarantee sub-millisecond responses on repeated queries.</p>
             
+            <div class="cache-admin-field">
+              <label for="admin-token-input">Admin token</label>
+              <input type="password" id="admin-token-input" placeholder="Bearer token (session only)" autocomplete="off">
+              <p class="cache-admin-hint">Stored in session for this browser tab only. Set <code>ADMIN_TOKEN</code> on the server.</p>
+            </div>
+
             <div class="cache-actions">
               <button id="clear-cache-btn" class="btn btn-danger">
                 <i class="fa-solid fa-trash-can"></i> Clear All Cached Data
