@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SoundFlow - Premium Music Explorer</title>
+  <!-- Modern Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <!-- CSS Styling -->
+  <link rel="stylesheet" href="index.css">
+  <!-- FontAwesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+  <!-- Ambient background glow elements -->
+  <div class="glow-bg">
+    <div class="glow-1"></div>
+    <div class="glow-2"></div>
+    <div class="glow-3"></div>
+  </div>
+
+  <div class="app-container">
+    <!-- Sidebar -->
+    <aside class="sidebar">
+      <div class="logo">
+        <i class="fa-solid fa-wand-magic-sparkles logo-icon"></i>
+        <span>SoundFlow</span>
+      </div>
+      <nav class="nav-menu">
+        <a href="#" class="nav-item active" id="nav-search">
+          <i class="fa-solid fa-magnifying-glass"></i>
+          <span>Search Explorer</span>
+        </a>
+        <a href="#" class="nav-item" id="nav-cache">
+          <i class="fa-solid fa-database"></i>
+          <span>Cache Manager</span>
+        </a>
+      </nav>
+      <div class="sidebar-footer">
+        <div class="status-indicator">
+          <span class="pulse-dot"></span>
+          <span>API Connected</span>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Main Content Area -->
+    <main class="main-content">
+      <!-- Search Header -->
+      <header class="search-header">
+        <div class="search-bar-wrapper">
+          <div class="search-bar-container">
+            <i class="fa-solid fa-magnifying-glass search-icon"></i>
+            <input type="text" id="search-input" placeholder="Search for artists, tracks, or albums..." autocomplete="off">
+            <button id="search-button">Explore</button>
+          </div>
+          <div class="search-types">
+            <button class="type-pill active" data-type="track"><i class="fa-solid fa-music"></i> Tracks</button>
+            <button class="type-pill" data-type="album"><i class="fa-solid fa-compact-disc"></i> Albums</button>
+            <button class="type-pill" data-type="artist"><i class="fa-solid fa-user-astronaut"></i> Artists</button>
+          </div>
+        </div>
+        <div class="system-stats">
+          <div class="stat-badge" id="latency-badge">
+            <i class="fa-solid fa-gauge-high"></i>
+            <span>Latency: -- ms</span>
+          </div>
+        </div>
+      </header>
+
+      <!-- Dynamic Views -->
+      <section class="content-view" id="search-view">
+        <!-- Welcome state -->
+        <div class="welcome-container" id="welcome-state">
+          <div class="welcome-card">
+            <h1>Discover Deep Music Insights</h1>
+            <p>Enter a track or artist to search Deezer, Wikipedia, MusicBrainz, and Genius in parallel. Powered by a high-performance WAL hybrid caching engine.</p>
+            <div class="quick-tags">
+              <span class="quick-tag">Daft Punk</span>
+              <span class="quick-tag">Billie Eilish</span>
+              <span class="quick-tag">Michael Jackson</span>
+              <span class="quick-tag">Queen</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Loading State -->
+        <div class="loading-container hidden" id="loading-state">
+          <div class="spinner"></div>
+          <p>Aggregating global music libraries...</p>
+        </div>
+
+        <!-- Search Results controls (Sorting) -->
+        <div class="results-controls hidden" id="results-controls">
+          <span class="results-count" id="results-count">Found 0 tracks</span>
+          <div class="sorting-options">
+            <span class="sort-label"><i class="fa-solid fa-arrow-down-wide-short"></i> Sort by:</span>
+            <select id="sort-select">
+              <option value="default">Default (Deezer rank)</option>
+              <option value="title">Title</option>
+              <option value="artist">Artist</option>
+              <option value="album">Album</option>
+              <option value="duration">Duration</option>
+            </select>
+            <button id="sort-dir-btn" title="Toggle Sort Direction">
+              <i class="fa-solid fa-arrow-down-a-z"></i>
+            </button>
+          </div>
+        </div>
+
+        <!-- Search Results Grid -->
+        <div class="results-grid hidden" id="results-grid"></div>
+      </section>
+
+      <!-- Cache Management View -->
+      <section class="content-view hidden" id="cache-view">
+        <div class="cache-container">
+          <div class="card cache-card">
+            <h2><i class="fa-solid fa-server"></i> Hybrid Cache Console</h2>
+            <p>SoundFlow uses an ultra-fast in-memory LRU cache coupled with a persistent SQLite3 database running in Write-Ahead Logging (WAL) mode to guarantee sub-millisecond responses on repeated queries.</p>
+            
+            <div class="cache-actions">
+              <button id="clear-cache-btn" class="btn btn-danger">
+                <i class="fa-solid fa-trash-can"></i> Clear All Cached Data
+              </button>
+            </div>
+            
+            <div class="cache-stats-grid">
+              <div class="stat-card">
+                <h3>WAL Mode</h3>
+                <p class="stat-val text-success">Enabled</p>
+                <p class="stat-desc">SQLite Journaling Mode</p>
+              </div>
+              <div class="stat-card">
+                <h3>LRU Capacity</h3>
+                <p class="stat-val">1000 items</p>
+                <p class="stat-desc">Max In-Memory Storage</p>
+              </div>
+              <div class="stat-card">
+                <h3>Cache Persistence</h3>
+                <p class="stat-val">24 Hours</p>
+                <p class="stat-desc">Details TTL</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <!-- Details Sliding Panel / Modal -->
+    <div class="details-panel-overlay hidden" id="details-overlay">
+      <div class="details-panel">
+        <header class="panel-header">
+          <button id="close-panel-btn"><i class="fa-solid fa-arrow-left"></i> Back</button>
+          <div class="pipeline-time">
+            <span class="badge" id="detail-latency-badge"><i class="fa-solid fa-bolt"></i> -- ms</span>
+          </div>
+        </header>
+
+        <div class="panel-scroll-content" id="panel-content">
+          <!-- Populated dynamically via JS -->
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
