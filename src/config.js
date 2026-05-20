@@ -41,6 +41,7 @@ export const config = {
   rateLimitMax: parseIntEnv('RATE_LIMIT_MAX', 60),
   rateLimitGlobalMax: parseIntEnv('RATE_LIMIT_GLOBAL_MAX', 120),
   cacheDbPath,
-  cacheMemoryOnly: parseBoolEnv('CACHE_MEMORY_ONLY'),
+  cacheMemoryOnly:
+    parseBoolEnv('CACHE_MEMORY_ONLY') || process.env.RENDER === 'true',
   projectRoot,
 };
