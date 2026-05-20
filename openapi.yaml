@@ -2,10 +2,22 @@ openapi: 3.0.3
 info:
   title: Music API — Discover
   version: 1.0.0
-  description: Proxy Deezer (découverte & charts). Voir README pour l’API Vibes sociale.
+  description: Proxy Deezer (découverte & charts). Catalogue complet pour agents IA — GET /api/capabilities
 servers:
   - url: http://localhost:3000
 paths:
+  /api/capabilities:
+    get:
+      summary: Catalogue JSON de toutes les routes (IA / outils)
+      responses:
+        '200':
+          description: Liste des routes, conventions, auth
+  /api/health:
+    get:
+      summary: Santé du service
+      responses:
+        '200':
+          description: OK
   /api/discover/new-releases:
     get:
       summary: Nouvelles sorties (éditorial Deezer)

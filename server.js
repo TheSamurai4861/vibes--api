@@ -4,6 +4,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { config } from './src/config.js';
 import { apiGlobalLimiter } from './src/middleware/rateLimit.js';
+import capabilitiesRouter from './src/routes/capabilities.js';
 import musicRouter from './src/routes/music.js';
 import vibesRouter from './src/routes/vibes/index.js';
 import * as cache from './src/services/cache.js';
@@ -40,6 +41,7 @@ app.use((req, res, next) => {
   next();
 });
 
+app.use('/api', apiGlobalLimiter, capabilitiesRouter);
 app.use('/api', apiGlobalLimiter, musicRouter);
 app.use(apiGlobalLimiter, vibesRouter);
 
@@ -66,6 +68,7 @@ if (isMain) {
     console.log(`Vibes Music API at http://localhost:${config.port}`);
     console.log(`Music:  /api/*  |  Vibes: /auth, /users, /feed, ...`);
     console.log(`Health: http://localhost:${config.port}/api/health`);
+    console.log(`Catalog (IA): http://localhost:${config.port}/api/capabilities`);
     console.log(`Supabase: ${config.supabaseConfigured ? 'configured' : 'NOT configured'}`);
     console.log(`======================================================\n`);
   });

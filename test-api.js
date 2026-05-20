@@ -39,6 +39,11 @@ async function run() {
   assert(r.status === 200, `health: ${r.status}`);
   console.log('  GET /api/health -> 200');
 
+  r = await request('GET', '/api/capabilities');
+  assert(r.status === 200 && r.body.routes?.length > 0, `capabilities: ${r.status}`);
+  assert(r.body.documentation?.capabilities === '/api/capabilities', 'capabilities doc link');
+  console.log(`  GET /api/capabilities -> 200 (${r.body.routeCount} routes)`);
+
   r = await request('GET', '/api/search');
   assert(r.status === 400, `search no q: ${r.status}`);
   console.log('  GET /api/search (no q) -> 400');

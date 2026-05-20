@@ -132,6 +132,16 @@ Depuis l'interface : **Cache Manager** → saisir le token admin (stocké en ses
 
 ## Endpoints
 
+### Découverte pour agents IA
+
+| Méthode | Route | Description |
+|---------|-------|-------------|
+| GET | `/api/capabilities` | **Catalogue JSON** : toutes les routes, auth, conventions (`musicItemId`, pagination) |
+| GET | `/api/openapi.yaml` | Spécification OpenAPI (partielle, discover) |
+| GET | `/api/health` | Santé ; inclut les liens `capabilities` et `openapi` |
+
+Exemple : `curl https://music-api-ut8s.onrender.com/api/capabilities`
+
 ### Musique (`/api`)
 
 Listes paginées : `{ items, total, nextOffset, meta }` — query `limit` (max 50), `offset`, `country` (défaut `FR`).

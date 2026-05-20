@@ -50,6 +50,8 @@ router.get(
       timestamp: new Date().toISOString(),
       cache: cacheOk ? 'connected' : 'unavailable',
       supabase: config.supabaseConfigured ? 'configured' : 'missing',
+      capabilities: '/api/capabilities',
+      openapi: '/api/openapi.yaml',
     });
   })
 );
